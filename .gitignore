@@ -14,3 +14,9 @@ transcriptions.txt
 
 # Ignore any temporary or log files
 *.log
+
+# Ignore any shell scripts
+*.sh
+
+# Ignore any shell scripts
+*.sh
