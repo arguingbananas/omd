@@ -3,24 +3,20 @@ import wave
 import pyaudio
 import whisper
 import os
+import argparse
 import numpy as np
+from datetime import datetime
 
 # Define host and port
 HOST = "localhost"
 PORT = 50007
 
-# Define chunk size in seconds
-CHUNK_SIZE = 10  # seconds
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
-CHUNK = RATE * CHUNK_SIZE  # Number of frames in CHUNK_SIZE seconds
-
-# Load the Whisper model
-model = whisper.load_model("medium")
 
 
-def transcribe_audio_chunk(chunk_filename):
+def transcribe_audio_chunk(model, chunk_filename):
     result = model.transcribe(chunk_filename)
     return result["text"]
 
@@ -30,7 +26,19 @@ def save_transcription(transcription, file_path):
         f.write(transcription + "\n")
 
 
-def main():
+def main(chunk_size, model_type):
+    # Calculate chunk size in frames
+    CHUNK = RATE * chunk_size  # Number of frames in chunk_size seconds
+
+    # Load the Whisper model
+    model = whisper.load_model(model_type)
+
+    # Generate a dynamic filename for the transcription
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    transcription_filename = (
+        f"transcriptions_{model_type}_{chunk_size}s_{timestamp}.txt"
+    )
+
     # Set up the server
     with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
         s.bind((HOST, PORT))
@@ -71,8 +79,8 @@ def main():
                         chunk_file.writeframes(chunk_data)
 
                     # Transcribe the chunk and save the result
-                    transcription = transcribe_audio_chunk(chunk_filename)
-                    save_transcription(transcription, "transcriptions.txt")
+                    transcription = transcribe_audio_chunk(model, chunk_filename)
+                    save_transcription(transcription, transcription_filename)
 
         except Exception as e:
             print(f"An error occurred: {e}")
@@ -83,4 +91,34 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    parser = argparse.ArgumentParser(
+        description="Radio program to stream audio and transcribe using Whisper."
+    )
+    parser.add_argument(
+        "--chunk_size",
+        type=int,
+        default=10,
+        help="Chunk size in seconds for processing audio.",
+    )
+    parser.add_argument(
+        "--model_type",
+        type=str,
+        default="base",
+        choices=[
+            "tiny",
+            "tiny.en",
+            "base",
+            "base.en",
+            "small",
+            "small.en",
+            "medium",
+            "medium.en",
+            "large",
+            "large-v2",
+            "large-v3",
+        ],
+        help="Whisper model type to use for transcription.",
+    )
+    args = parser.parse_args()
+
+    main(args.chunk_size, args.model_type)
