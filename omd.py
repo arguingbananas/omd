@@ -1,11 +1,10 @@
 import socket
 import wave
 import pyaudio
-import whisper
 import os
 import argparse
-import numpy as np
 from datetime import datetime
+from faster_whisper import WhisperModel
 
 # Define host and port
 HOST = "localhost"
@@ -16,9 +15,14 @@ CHANNELS = 1
 RATE = 44100
 
 
-def transcribe_audio_chunk(model, chunk_filename):
-    result = model.transcribe(chunk_filename)
-    return result["text"]
+def transcribe_audio_chunk(model, chunk_filename, beam_size=5):
+    segments, info = model.transcribe(chunk_filename, beam_size=beam_size)
+    transcription = f"Detected language '{info.language}' with probability {info.language_probability}\n"
+    for segment in segments:
+        transcription += (
+            f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}\n"
+        )
+    return transcription
 
 
 def save_transcription(transcription, file_path):
@@ -26,17 +30,17 @@ def save_transcription(transcription, file_path):
         f.write(transcription + "\n")
 
 
-def main(chunk_size, model_type):
+def main(chunk_size, model_size, device, compute_type):
     # Calculate chunk size in frames
     CHUNK = RATE * chunk_size  # Number of frames in chunk_size seconds
 
     # Load the Whisper model
-    model = whisper.load_model(model_type)
+    model = WhisperModel(model_size, device=device, compute_type=compute_type)
 
     # Generate a dynamic filename for the transcription
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     transcription_filename = (
-        f"transcriptions_{model_type}_{chunk_size}s_{timestamp}.txt"
+        f"transcriptions_{model_size}_{chunk_size}s_{timestamp}.txt"
     )
 
     # Set up the server
@@ -92,7 +96,7 @@ def main(chunk_size, model_type):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Radio program to stream audio and transcribe using Whisper."
+        description="Radio program to stream audio and transcribe using faster Whisper."
     )
     parser.add_argument(
         "--chunk_size",
@@ -101,7 +105,7 @@ if __name__ == "__main__":
         help="Chunk size in seconds for processing audio.",
     )
     parser.add_argument(
-        "--model_type",
+        "--model_size",
         type=str,
         default="base",
         choices=[
@@ -117,8 +121,22 @@ if __name__ == "__main__":
             "large-v2",
             "large-v3",
         ],
-        help="Whisper model type to use for transcription.",
+        help="Faster Whisper model size to use for transcription.",
+    )
+    parser.add_argument(
+        "--device",
+        type=str,
+        default="cpu",
+        choices=["cpu", "cuda"],
+        help="Device to run the model on (cpu or cuda).",
+    )
+    parser.add_argument(
+        "--compute_type",
+        type=str,
+        default="float32",
+        choices=["float32", "float16", "int8", "int8_float16"],
+        help="Compute type for the model.",
     )
     args = parser.parse_args()
 
-    main(args.chunk_size, args.model_type)
+    main(args.chunk_size, args.model_size, args.device, args.compute_type)

@@ -1,4 +1,4 @@
 torch
 torchaudio
 pyaudio
-openai-whisper
+faster-whisper
