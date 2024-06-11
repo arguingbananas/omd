@@ -13,6 +13,7 @@ PORT = 50007
 FORMAT = pyaudio.paInt16
 CHANNELS = 1
 RATE = 44100
+CHUNK = 1024
 
 
 def transcribe_audio_chunk(model, chunk_filename, beam_size=5):
@@ -32,7 +33,7 @@ def save_transcription(transcription, file_path):
 
 def main(chunk_size, model_size, device, compute_type):
     # Calculate chunk size in frames
-    CHUNK = RATE * chunk_size  # Number of frames in chunk_size seconds
+    CHUNK_FRAMES = RATE * chunk_size  # Number of frames in chunk_size seconds
 
     # Load the Whisper model
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
@@ -70,9 +71,9 @@ def main(chunk_size, model_size, device, compute_type):
                 buffer.extend(data)
                 wf.writeframes(data)
 
-                if len(buffer) >= CHUNK:
-                    chunk_data = buffer[:CHUNK]
-                    buffer = buffer[CHUNK:]
+                if len(buffer) >= CHUNK_FRAMES:
+                    chunk_data = buffer[:CHUNK_FRAMES]
+                    buffer = buffer[CHUNK_FRAMES:]
 
                     # Save the chunk to a file
                     chunk_filename = "chunk.wav"
