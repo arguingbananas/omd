@@ -16,13 +16,18 @@ RATE = 44100
 CHUNK = 1024
 
 
-def transcribe_audio_chunk(model, chunk_filename, beam_size=5):
+def transcribe_audio_chunk(model, chunk_filename, beam_size=5, verbose=False):
     segments, info = model.transcribe(chunk_filename, beam_size=beam_size)
-    transcription = f"Detected language '{info.language}' with probability {info.language_probability}\n"
-    for segment in segments:
-        transcription += (
-            f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}\n"
-        )
+
+    if verbose:
+        transcription = f"Detected language '{info.language}' with probability {info.language_probability}\n"
+        for segment in segments:
+            transcription += (
+                f"[{segment.start:.2f}s -> {segment.end:.2f}s] {segment.text}\n"
+            )
+    else:
+        transcription = "".join(segment.text for segment in segments)
+
     return transcription
 
 
@@ -31,7 +36,7 @@ def save_transcription(transcription, file_path):
         f.write(transcription + "\n")
 
 
-def main(chunk_size, model_size, device, compute_type):
+def main(chunk_size, model_size, device, compute_type, verbose):
     # Calculate chunk size in frames
     CHUNK_FRAMES = RATE * chunk_size  # Number of frames in chunk_size seconds
 
@@ -84,7 +89,9 @@ def main(chunk_size, model_size, device, compute_type):
                         chunk_file.writeframes(chunk_data)
 
                     # Transcribe the chunk and save the result
-                    transcription = transcribe_audio_chunk(model, chunk_filename)
+                    transcription = transcribe_audio_chunk(
+                        model, chunk_filename, verbose=verbose
+                    )
                     save_transcription(transcription, transcription_filename)
 
         except Exception as e:
@@ -138,6 +145,11 @@ if __name__ == "__main__":
         choices=["float32", "float16", "int8", "int8_float16"],
         help="Compute type for the model.",
     )
+    parser.add_argument(
+        "--verbose",
+        action="store_true",
+        help="Enable verbose output including detected language and transcription details.",
+    )
     args = parser.parse_args()
 
-    main(args.chunk_size, args.model_size, args.device, args.compute_type)
+    main(args.chunk_size, args.model_size, args.device, args.compute_type, args.verbose)
