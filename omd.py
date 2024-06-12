@@ -16,8 +16,20 @@ RATE = 44100
 CHUNK = 1024
 
 
-def transcribe_audio_chunk(model, chunk_filename, beam_size=5, verbose=False):
-    segments, info = model.transcribe(chunk_filename, beam_size=beam_size)
+def transcribe_audio_chunk(
+    model,
+    chunk_filename,
+    beam_size=5,
+    language="en",
+    condition_on_previous_text=False,
+    verbose=False,
+):
+    segments, info = model.transcribe(
+        chunk_filename,
+        beam_size=beam_size,
+        language=language,
+        condition_on_previous_text=condition_on_previous_text,
+    )
 
     if verbose:
         transcription = f"Detected language '{info.language}' with probability {info.language_probability}\n"
@@ -36,11 +48,11 @@ def save_transcription(transcription, file_path):
         f.write(transcription + "\n")
 
 
-def main(chunk_size, model_size, device, compute_type, verbose):
+def main(chunk_size, model_size, device, compute_type, beam_size, verbose):
     # Calculate chunk size in frames
     CHUNK_FRAMES = RATE * chunk_size  # Number of frames in chunk_size seconds
 
-    # Load the Whisper model
+    # Load the Faster Distil-Whisper model
     model = WhisperModel(model_size, device=device, compute_type=compute_type)
 
     # Generate a dynamic filename for the transcription
@@ -90,7 +102,7 @@ def main(chunk_size, model_size, device, compute_type, verbose):
 
                     # Transcribe the chunk and save the result
                     transcription = transcribe_audio_chunk(
-                        model, chunk_filename, verbose=verbose
+                        model, chunk_filename, beam_size=beam_size, verbose=verbose
                     )
                     save_transcription(transcription, transcription_filename)
 
@@ -104,7 +116,7 @@ def main(chunk_size, model_size, device, compute_type, verbose):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(
-        description="Radio program to stream audio and transcribe using faster Whisper."
+        description="Radio program to stream audio and transcribe using Faster Distil-Whisper."
     )
     parser.add_argument(
         "--chunk_size",
@@ -115,7 +127,7 @@ if __name__ == "__main__":
     parser.add_argument(
         "--model_size",
         type=str,
-        default="base",
+        default="distil-large-v3",
         choices=[
             "tiny",
             "tiny.en",
@@ -128,8 +140,9 @@ if __name__ == "__main__":
             "large",
             "large-v2",
             "large-v3",
+            "distil-large-v3",
         ],
-        help="Faster Whisper model size to use for transcription.",
+        help="Faster Distil-Whisper model size to use for transcription.",
     )
     parser.add_argument(
         "--device",
@@ -146,10 +159,23 @@ if __name__ == "__main__":
         help="Compute type for the model.",
     )
     parser.add_argument(
+        "--beam_size",
+        type=int,
+        default=5,
+        help="Beam size for the transcription algorithm.",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose output including detected language and transcription details.",
     )
     args = parser.parse_args()
 
-    main(args.chunk_size, args.model_size, args.device, args.compute_type, args.verbose)
+    main(
+        args.chunk_size,
+        args.model_size,
+        args.device,
+        args.compute_type,
+        args.beam_size,
+        args.verbose,
+    )
