@@ -22,6 +22,7 @@ def transcribe_audio_chunk(
     beam_size=5,
     language="en",
     condition_on_previous_text=False,
+    vad_filter=False,
     verbose=False,
 ):
     segments, info = model.transcribe(
@@ -29,6 +30,7 @@ def transcribe_audio_chunk(
         beam_size=beam_size,
         language=language,
         condition_on_previous_text=condition_on_previous_text,
+        vad_filter=vad_filter,
     )
 
     if verbose:
@@ -48,7 +50,7 @@ def save_transcription(transcription, file_path):
         f.write(transcription + "\n")
 
 
-def main(chunk_size, model_size, device, compute_type, beam_size, verbose):
+def main(chunk_size, model_size, device, compute_type, beam_size, vad_filter, verbose):
     # Calculate chunk size in frames
     CHUNK_FRAMES = RATE * chunk_size  # Number of frames in chunk_size seconds
 
@@ -102,7 +104,11 @@ def main(chunk_size, model_size, device, compute_type, beam_size, verbose):
 
                     # Transcribe the chunk and save the result
                     transcription = transcribe_audio_chunk(
-                        model, chunk_filename, beam_size=beam_size, verbose=verbose
+                        model,
+                        chunk_filename,
+                        beam_size=beam_size,
+                        vad_filter=vad_filter,
+                        verbose=verbose,
                     )
                     save_transcription(transcription, transcription_filename)
 
@@ -165,6 +171,11 @@ if __name__ == "__main__":
         help="Beam size for the transcription algorithm.",
     )
     parser.add_argument(
+        "--vad_filter",
+        action="store_true",
+        help="Enable voice activity detection (VAD) filter.",
+    )
+    parser.add_argument(
         "--verbose",
         action="store_true",
         help="Enable verbose output including detected language and transcription details.",
@@ -177,5 +188,6 @@ if __name__ == "__main__":
         args.device,
         args.compute_type,
         args.beam_size,
+        args.vad_filter,
         args.verbose,
     )
